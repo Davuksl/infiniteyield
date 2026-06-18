@@ -5530,7 +5530,9 @@ function getPlayersByName(Name)
 	return Found
 end
 local antiaimConnection = nil
+local subtickStrafeConnection = nil
 
+-- Anti-Aim with First-Person Fix
 addcmd('antiaim', {'aa'}, function(args, speaker)
     if antiaimConnection then antiaimConnection:Disconnect() end
     
@@ -5543,7 +5545,7 @@ addcmd('antiaim', {'aa'}, function(args, speaker)
         local humanoid = character and character:FindFirstChildWhichIsA("Humanoid")
         
         if rootPart and humanoid and humanoid.Health > 0 then
-            -- Выключаем авто-разворот за камерой, чтобы работало от первого лица
+            -- Disable AutoRotate to prevent first-person lock
             if humanoid.AutoRotate then 
                 humanoid.AutoRotate = false 
             end
@@ -5558,7 +5560,7 @@ addcmd('antiaim', {'aa'}, function(args, speaker)
         end
     end)
     
-    notify('Anti-Aim', 'Включен режим: ' .. mode .. ' (Фикс 1-го лица активен)')
+    notify('Anti-Aim', 'Enabled mode: ' .. mode)
 end)
 
 addcmd('unantiaim', {'unaa', 'noantiaim'}, function(args, speaker)
@@ -5566,16 +5568,55 @@ addcmd('unantiaim', {'unaa', 'noantiaim'}, function(args, speaker)
         antiaimConnection:Disconnect()
         antiaimConnection = nil
         
-        -- Возвращаем управление поворотом персонажу
         local character = speaker.Character
         local humanoid = character and character:FindFirstChildWhichIsA("Humanoid")
         if humanoid then 
             humanoid.AutoRotate = true 
         end
         
-        notify('Anti-Aim', 'Anti-Aim отключен')
+        notify('Anti-Aim', 'Disabled')
     else
-        notify('Anti-Aim', 'Anti-Aim не был запущен')
+        notify('Anti-Aim', 'Not active')
+    end
+end)
+
+-- Subtick Strafe
+addcmd('subtickstrafe', {'substrafe', 'autostrafe', 'ss'}, function(args, speaker)
+    if subtickStrafeConnection then subtickStrafeConnection:Disconnect() end
+    
+    local boostFactor = tonumber(args[1]) or 1.5
+    
+    subtickStrafeConnection = RunService.Heartbeat:Connect(function()
+        local character = speaker.Character
+        local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+        local humanoid = character and character:FindFirstChildWhichIsA("Humanoid")
+        
+        if rootPart and humanoid and humanoid.Health > 0 then
+            local state = humanoid:GetState()
+            if state == Enum.HumanoidStateType.Freefall or state == Enum.HumanoidStateType.Jumping then
+                local moveDir = humanoid.MoveDirection
+                if moveDir.Magnitude > 0 then
+                    local currentVel = rootPart.Velocity
+                    local speedInDirection = Vector3.new(currentVel.X, 0, currentVel.Z):Dot(moveDir)
+                    
+                    if speedInDirection < (humanoid.WalkSpeed * 2.5) then
+                        rootPart.Velocity = currentVel + (moveDir * boostFactor)
+                    end
+                end
+            end
+        end
+    end)
+    
+    notify('Subtick Strafe', 'Enabled factor: ' .. boostFactor)
+end)
+
+addcmd('unsubtickstrafe', {'unsubstrafe', 'unss', 'noautostrafe'}, function(args, speaker)
+    if subtickStrafeConnection then
+        subtickStrafeConnection:Disconnect()
+        subtickStrafeConnection = nil
+        notify('Subtick Strafe', 'Disabled')
+    else
+        notify('Subtick Strafe', 'Not active')
     end
 end)
 local subtickStrafeConnection = nil
