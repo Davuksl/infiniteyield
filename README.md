@@ -1,16 +1,12 @@
-# Infinite Yield
+# Infinite Yield modified
+
+added some csgo hvh functions like antiaim, subtick strafer
 
 The best command line script for roblox.
 
-[![](https://dcbadge.limes.pink/api/server/https://discord.gg/78ZuWSq)](https://discord.gg/78ZuWSq)
-
 ```lua
-loadstring(game:HttpGet("https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source"))()
+loadstring(game:HttpGet("https://github.com/Davuksl/infiniteyield/raw/refs/heads/master/source"))()
 ```
-
- - Currently 400 commands
- - Open Source
- - 8+ years of development
 
 ## Developers
 
