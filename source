@@ -5543,20 +5543,40 @@ addcmd('antiaim', {'aa'}, function(args, speaker)
         local humanoid = character and character:FindFirstChildWhichIsA("Humanoid")
         
         if rootPart and humanoid and humanoid.Health > 0 then
+            -- Выключаем авто-разворот за камерой, чтобы работало от первого лица
+            if humanoid.AutoRotate then 
+                humanoid.AutoRotate = false 
+            end
+            
             if mode == "jitter" then
-                -- Быстрые хаотичные развороты в стороны
                 rootPart.CFrame = rootPart.CFrame * CFrame.Angles(0, math.rad(math.random(-180, 180)), 0)
             elseif mode == "spin" then
-                -- Плавное быстрое вращение
                 rootPart.CFrame = rootPart.CFrame * CFrame.Angles(0, math.rad(speed), 0)
             elseif mode == "lookdown" then
-                -- Наклон торса/камеры вниз для скрытия головы
                 rootPart.CFrame = rootPart.CFrame * CFrame.Angles(math.rad(-85), math.rad(math.random(-180, 180)), 0)
             end
         end
     end)
     
-    notify('Anti-Aim', 'Enabled mode: ' .. mode)
+    notify('Anti-Aim', 'Включен режим: ' .. mode .. ' (Фикс 1-го лица активен)')
+end)
+
+addcmd('unantiaim', {'unaa', 'noantiaim'}, function(args, speaker)
+    if antiaimConnection then
+        antiaimConnection:Disconnect()
+        antiaimConnection = nil
+        
+        -- Возвращаем управление поворотом персонажу
+        local character = speaker.Character
+        local humanoid = character and character:FindFirstChildWhichIsA("Humanoid")
+        if humanoid then 
+            humanoid.AutoRotate = true 
+        end
+        
+        notify('Anti-Aim', 'Anti-Aim отключен')
+    else
+        notify('Anti-Aim', 'Anti-Aim не был запущен')
+    end
 end)
 local subtickStrafeConnection = nil
 
@@ -5604,16 +5624,6 @@ addcmd('unsubtickstrafe', {'unsubstrafe', 'unss', 'noautostrafe'}, function(args
         notify('Subtick Strafe', 'Autstrafe disabled')
     else
         notify('Subtick Strafe', 'Autstrafe wasn t enabled')
-    end
-end)
-
-addcmd('unantiaim', {'unaa', 'noantiaim'}, function(args, speaker)
-    if antiaimConnection then
-        antiaimConnection:Disconnect()
-        antiaimConnection = nil
-        notify('Anti-Aim', 'Anti-Aim disabled')
-    else
-        notify('Anti-Aim', 'Anti-Aim wasn t enabled')
     end
 end)
 
