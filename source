@@ -6220,9 +6220,9 @@ Add_2.MouseButton1Click:Connect(function()
 		if string.find(Cmdbar_2.Text, "\\\\") or string.find(Cmdbar_3.Text, "\\\\") then
 			notify('Keybind Error','Only use one backslash to keybind multiple commands into one keybind or command')
 		else
-			if newToggle and Cmdbar_3.Text ~= '' and Cmdbar_2.text ~= '' then
+			if newToggle and Cmdbar_3.Text ~= '' and Cmdbar_2.Text ~= '' then
 				addbind(Cmdbar_2.Text,keyPressed,false,Cmdbar_3.Text)
-			elseif not newToggle and Cmdbar_2.text ~= '' then
+			elseif not newToggle and Cmdbar_2.Text ~= '' then
 				addbind(Cmdbar_2.Text,keyPressed,bindChosenKeyUp)
 			else
 				return
