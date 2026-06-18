@@ -5533,7 +5533,25 @@ local antiaimConnection = nil
 local subtickStrafeConnection = nil
 local bhopConnection = nil
 
--- Fixed Anti-Aim (Allows movement in strict games)
+-- Helper to safely create or destroy physics force objects
+local function updateForce(rootPart, active, velocity)
+    local force = rootPart:FindFirstChild("IY_MovementForce")
+    if active then
+        if not force then
+            force = Instance.new("BodyVelocity")
+            force.Name = "IY_MovementForce"
+            force.MaxForce = Vector3.new(100000, 0, 100000) -- Only affect horizontal movement
+            force.Parent = rootPart
+        end
+        force.Velocity = velocity
+    else
+        if force then force:Destroy() end
+    end
+end
+
+-- ==========================================
+-- ANTI-AIM (Fixed movement lock in all games)
+-- ==========================================
 addcmd('antiaim', {'aa'}, function(args, speaker)
     if antiaimConnection then antiaimConnection:Disconnect() end
     
@@ -5550,10 +5568,12 @@ addcmd('antiaim', {'aa'}, function(args, speaker)
                 humanoid.AutoRotate = false 
             end
             
-            -- Keep movement vector baseline
-            local currentMove = humanoid.MoveDirection
-            if currentMove.Magnitude > 0 then
-                rootPart.AssemblyLinearVelocity = Vector3.new(currentMove.X * humanoid.WalkSpeed, rootPart.AssemblyLinearVelocity.Y, currentMove.Z * humanoid.WalkSpeed)
+            -- Fix movement using physics engine force instead of resetting velocity
+            local moveDir = humanoid.MoveDirection
+            if moveDir.Magnitude > 0 then
+                updateForce(rootPart, true, moveDir * humanoid.WalkSpeed)
+            else
+                updateForce(rootPart, false)
             end
             
             if mode == "jitter" then
@@ -5575,10 +5595,11 @@ addcmd('unantiaim', {'unaa', 'noantiaim'}, function(args, speaker)
         antiaimConnection = nil
         
         local character = speaker.Character
+        local rootPart = character and character:FindFirstChild("HumanoidRootPart")
         local humanoid = character and character:FindFirstChildWhichIsA("Humanoid")
-        if humanoid then 
-            humanoid.AutoRotate = true 
-        end
+        
+        if rootPart then updateForce(rootPart, false) end
+        if humanoid then humanoid.AutoRotate = true end
         
         notify('Anti-Aim', 'Disabled')
     else
@@ -5586,7 +5607,9 @@ addcmd('unantiaim', {'unaa', 'noantiaim'}, function(args, speaker)
     end
 end)
 
--- Universal Subtick Strafe (Uses AssemblyLinearVelocity to bypass overrides)
+-- ==========================================
+-- SUBTICK STRAFE (Bypasses all velocity overrides)
+-- ==========================================
 addcmd('subtickstrafe', {'substrafe', 'autostrafe', 'ss'}, function(args, speaker)
     if subtickStrafeConnection then subtickStrafeConnection:Disconnect() end
     
@@ -5602,11 +5625,12 @@ addcmd('subtickstrafe', {'substrafe', 'autostrafe', 'ss'}, function(args, speake
             if state == Enum.HumanoidStateType.Freefall or state == Enum.HumanoidStateType.Jumping then
                 local moveDir = humanoid.MoveDirection
                 if moveDir.Magnitude > 0 then
+                    -- Use alternative CFrame manipulation to forcefully override strict anticheats
                     local currentVel = rootPart.AssemblyLinearVelocity
                     local speedInDirection = Vector3.new(currentVel.X, 0, currentVel.Z):Dot(moveDir)
                     
                     if speedInDirection < (humanoid.WalkSpeed * 2.5) then
-                        rootPart.AssemblyLinearVelocity = currentVel + (moveDir * boostFactor)
+                        rootPart.CFrame = rootPart.CFrame + (moveDir * (boostFactor / 10))
                     end
                 end
             end
@@ -5626,7 +5650,9 @@ addcmd('unsubtickstrafe', {'unsubstrafe', 'unss', 'noautostrafe'}, function(args
     end
 end)
 
--- Auto-Bhop Command
+-- ==========================================
+-- AUTO-BHOP (Instant response)
+-- ==========================================
 addcmd('bhop', {'bunnyhop'}, function(args, speaker)
     if bhopConnection then bhopConnection:Disconnect() end
     
@@ -5635,9 +5661,11 @@ addcmd('bhop', {'bunnyhop'}, function(args, speaker)
         local humanoid = character and character:FindFirstChildWhichIsA("Humanoid")
         
         if humanoid and humanoid.Health > 0 then
-            -- Jump immediately when touching the ground if moving
-            if humanoid.MoveDirection.Magnitude > 0 and humanoid.FloorMaterial ~= Enum.Material.Air then
-                humanoid.Jump = true
+            if humanoid.MoveDirection.Magnitude > 0 then
+                -- Force state replication change to ensure jump registration
+                if humanoid.FloorMaterial ~= Enum.Material.Air then
+                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                end
             end
         end
     end)
