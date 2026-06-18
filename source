@@ -5556,16 +5556,64 @@ addcmd('antiaim', {'aa'}, function(args, speaker)
         end
     end)
     
-    notify('Anti-Aim', 'Включен режим: ' .. mode)
+    notify('Anti-Aim', 'Enabled mode: ' .. mode)
+end)
+local subtickStrafeConnection = nil
+
+addcmd('subtickstrafe', {'substrafe', 'autostrafe', 'ss'}, function(args, speaker)
+    if subtickStrafeConnection then subtickStrafeConnection:Disconnect() end
+    
+    -- Коэффициент ускорения стрейфа (по умолчанию 1.5)
+    local boostFactor = tonumber(args[1]) or 1.5
+    
+    subtickStrafeConnection = RunService.Heartbeat:Connect(function(delta)
+        local character = speaker.Character
+        local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+        local humanoid = character and character:FindFirstChildWhichIsA("Humanoid")
+        
+        if rootPart and humanoid and humanoid.Health > 0 then
+            local state = humanoid:GetState()
+            -- Срабатывает только в воздухе (свободное падение или прыжок)
+            if state == Enum.HumanoidStateType.Freefall or state == Enum.HumanoidStateType.Jumping then
+                local moveDir = humanoid.MoveDirection
+                if moveDir.Magnitude > 0 then
+                    -- Получаем текущую горизонтальную скорость
+                    local currentVel = rootPart.Velocity
+                    local horizontalVel = Vector3.new(currentVel.X, 0, currentVel.Z)
+                    
+                    -- Проверяем, куда направлен стрейф относительно движения камеры
+                    local speedInDirection = horizontalVel:Dot(moveDir)
+                    
+                    -- Ограничитель, чтобы скорость не росла до бесконечности (защита от античитов)
+                    if speedInDirection < (humanoid.WalkSpeed * 2.5) then
+                        -- Применяем мгновенный импульс в сторону стрейфа на каждом тике
+                        rootPart.Velocity = currentVel + (moveDir * boostFactor)
+                    end
+                end
+            end
+        end
+    end)
+    
+    notify('Subtick Strafe', 'Autstrafe enabled! Multiplier: ' .. boostFactor)
+end)
+
+addcmd('unsubtickstrafe', {'unsubstrafe', 'unss', 'noautostrafe'}, function(args, speaker)
+    if subtickStrafeConnection then
+        subtickStrafeConnection:Disconnect()
+        subtickStrafeConnection = nil
+        notify('Subtick Strafe', 'Autstrafe disabled')
+    else
+        notify('Subtick Strafe', 'Autstrafe wasn t enabled')
+    end
 end)
 
 addcmd('unantiaim', {'unaa', 'noantiaim'}, function(args, speaker)
     if antiaimConnection then
         antiaimConnection:Disconnect()
         antiaimConnection = nil
-        notify('Anti-Aim', 'Anti-Aim успешно отключен')
+        notify('Anti-Aim', 'Anti-Aim disabled')
     else
-        notify('Anti-Aim', 'Anti-Aim не был запущен')
+        notify('Anti-Aim', 'Anti-Aim wasn t enabled')
     end
 end)
 
