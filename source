@@ -5531,8 +5531,9 @@ function getPlayersByName(Name)
 end
 local antiaimConnection = nil
 local subtickStrafeConnection = nil
+local bhopConnection = nil
 
--- Anti-Aim with First-Person Fix
+-- Fixed Anti-Aim (Allows movement in strict games)
 addcmd('antiaim', {'aa'}, function(args, speaker)
     if antiaimConnection then antiaimConnection:Disconnect() end
     
@@ -5545,9 +5546,14 @@ addcmd('antiaim', {'aa'}, function(args, speaker)
         local humanoid = character and character:FindFirstChildWhichIsA("Humanoid")
         
         if rootPart and humanoid and humanoid.Health > 0 then
-            -- Disable AutoRotate to prevent first-person lock
             if humanoid.AutoRotate then 
                 humanoid.AutoRotate = false 
+            end
+            
+            -- Keep movement vector baseline
+            local currentMove = humanoid.MoveDirection
+            if currentMove.Magnitude > 0 then
+                rootPart.AssemblyLinearVelocity = Vector3.new(currentMove.X * humanoid.WalkSpeed, rootPart.AssemblyLinearVelocity.Y, currentMove.Z * humanoid.WalkSpeed)
             end
             
             if mode == "jitter" then
@@ -5580,7 +5586,7 @@ addcmd('unantiaim', {'unaa', 'noantiaim'}, function(args, speaker)
     end
 end)
 
--- Subtick Strafe
+-- Universal Subtick Strafe (Uses AssemblyLinearVelocity to bypass overrides)
 addcmd('subtickstrafe', {'substrafe', 'autostrafe', 'ss'}, function(args, speaker)
     if subtickStrafeConnection then subtickStrafeConnection:Disconnect() end
     
@@ -5596,11 +5602,11 @@ addcmd('subtickstrafe', {'substrafe', 'autostrafe', 'ss'}, function(args, speake
             if state == Enum.HumanoidStateType.Freefall or state == Enum.HumanoidStateType.Jumping then
                 local moveDir = humanoid.MoveDirection
                 if moveDir.Magnitude > 0 then
-                    local currentVel = rootPart.Velocity
+                    local currentVel = rootPart.AssemblyLinearVelocity
                     local speedInDirection = Vector3.new(currentVel.X, 0, currentVel.Z):Dot(moveDir)
                     
                     if speedInDirection < (humanoid.WalkSpeed * 2.5) then
-                        rootPart.Velocity = currentVel + (moveDir * boostFactor)
+                        rootPart.AssemblyLinearVelocity = currentVel + (moveDir * boostFactor)
                     end
                 end
             end
@@ -5619,52 +5625,33 @@ addcmd('unsubtickstrafe', {'unsubstrafe', 'unss', 'noautostrafe'}, function(args
         notify('Subtick Strafe', 'Not active')
     end
 end)
-local subtickStrafeConnection = nil
 
-addcmd('subtickstrafe', {'substrafe', 'autostrafe', 'ss'}, function(args, speaker)
-    if subtickStrafeConnection then subtickStrafeConnection:Disconnect() end
+-- Auto-Bhop Command
+addcmd('bhop', {'bunnyhop'}, function(args, speaker)
+    if bhopConnection then bhopConnection:Disconnect() end
     
-    -- Коэффициент ускорения стрейфа (по умолчанию 1.5)
-    local boostFactor = tonumber(args[1]) or 1.5
-    
-    subtickStrafeConnection = RunService.Heartbeat:Connect(function(delta)
+    bhopConnection = RunService.PreRender:Connect(function()
         local character = speaker.Character
-        local rootPart = character and character:FindFirstChild("HumanoidRootPart")
         local humanoid = character and character:FindFirstChildWhichIsA("Humanoid")
         
-        if rootPart and humanoid and humanoid.Health > 0 then
-            local state = humanoid:GetState()
-            -- Срабатывает только в воздухе (свободное падение или прыжок)
-            if state == Enum.HumanoidStateType.Freefall or state == Enum.HumanoidStateType.Jumping then
-                local moveDir = humanoid.MoveDirection
-                if moveDir.Magnitude > 0 then
-                    -- Получаем текущую горизонтальную скорость
-                    local currentVel = rootPart.Velocity
-                    local horizontalVel = Vector3.new(currentVel.X, 0, currentVel.Z)
-                    
-                    -- Проверяем, куда направлен стрейф относительно движения камеры
-                    local speedInDirection = horizontalVel:Dot(moveDir)
-                    
-                    -- Ограничитель, чтобы скорость не росла до бесконечности (защита от античитов)
-                    if speedInDirection < (humanoid.WalkSpeed * 2.5) then
-                        -- Применяем мгновенный импульс в сторону стрейфа на каждом тике
-                        rootPart.Velocity = currentVel + (moveDir * boostFactor)
-                    end
-                end
+        if humanoid and humanoid.Health > 0 then
+            -- Jump immediately when touching the ground if moving
+            if humanoid.MoveDirection.Magnitude > 0 and humanoid.FloorMaterial ~= Enum.Material.Air then
+                humanoid.Jump = true
             end
         end
     end)
     
-    notify('Subtick Strafe', 'Autstrafe enabled! Multiplier: ' .. boostFactor)
+    notify('Bhop', 'Auto-Bhop Enabled')
 end)
 
-addcmd('unsubtickstrafe', {'unsubstrafe', 'unss', 'noautostrafe'}, function(args, speaker)
-    if subtickStrafeConnection then
-        subtickStrafeConnection:Disconnect()
-        subtickStrafeConnection = nil
-        notify('Subtick Strafe', 'Autstrafe disabled')
+addcmd('unbhop', {'nobhop', 'unbunnyhop'}, function(args, speaker)
+    if bhopConnection then
+        bhopConnection:Disconnect()
+        bhopConnection = nil
+        notify('Bhop', 'Disabled')
     else
-        notify('Subtick Strafe', 'Autstrafe wasn t enabled')
+        notify('Bhop', 'Not active')
     end
 end)
 
