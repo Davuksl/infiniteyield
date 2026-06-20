@@ -4521,6 +4521,7 @@ CMDs[#CMDs + 1] = {NAME = 'unalignmentkeys / noalignmentkeys', DESC = 'Disables 
 CMDs[#CMDs + 1] = {NAME = 'ctrllock', DESC = 'Binds Shiftlock to LeftControl'}
 CMDs[#CMDs + 1] = {NAME = 'unctrllock', DESC = 'Re-binds Shiftlock to LeftShift'}
 CMDs[#CMDs + 1] = {NAME = 'exit', DESC = 'Kills roblox process'}
+CMDs[#CMDs + 1] = {NAME = 'unload', DESC = 'Unloads Infinite Yield'}
 CMDs[#CMDs + 1] = {NAME = 'removecmd / deletecmd', DESC = 'Removes a command until the script is reloaded'}
 CMDs[#CMDs + 1] = {NAME = 'breakloops / break (cmd loops)', DESC = 'Stops any cmd loops (;100^1^cmd)'}
 CMDs[#CMDs + 1] = {NAME = '', DESC = ''}
@@ -5661,7 +5662,7 @@ addcmd('bhop', {'bunnyhop'}, function(args, speaker)
         local humanoid = character and character:FindFirstChildWhichIsA("Humanoid")
         
         if humanoid and humanoid.Health > 0 then
-            if humanoid.MoveDirection.Magnitude > 0 then
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) and not UserInputService:GetFocusedTextBox() then
                 -- Force state replication change to ensure jump registration
                 if humanoid.FloorMaterial ~= Enum.Material.Air then
                     humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
@@ -7120,6 +7121,16 @@ end)
 
 addcmd("exit", {}, function(args, speaker)
 	game:Shutdown()
+end)
+
+addcmd("unload", {}, function(args, speaker)
+	if PARENT then
+		PARENT:Destroy()
+	end
+	-- Assuming 'bhopConnection' and other potential connections need to be disconnected
+	if bhopConnection then bhopConnection:Disconnect() end
+	-- Add other cleanups here as needed (e.g., antiaimConnection, etc.)
+	notify("Infinite Yield", "Unloaded successfully")
 end)
 
 local Noclipping = nil
