@@ -5662,9 +5662,11 @@ addcmd('bhop', {'bunnyhop'}, function(args, speaker)
         local humanoid = character and character:FindFirstChildWhichIsA("Humanoid")
         
         if humanoid and humanoid.Health > 0 then
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) and not UserInputService:GetFocusedTextBox() then
                 -- Force state replication change to ensure jump registration
-            if humanoid.FloorMaterial ~= Enum.Material.Air then
-                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                if humanoid.FloorMaterial ~= Enum.Material.Air then
+                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                end
             end
         end
     end)
