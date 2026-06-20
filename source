@@ -5662,11 +5662,9 @@ addcmd('bhop', {'bunnyhop'}, function(args, speaker)
         local humanoid = character and character:FindFirstChildWhichIsA("Humanoid")
         
         if humanoid and humanoid.Health > 0 then
-            if UserInputService:IsKeyDown(Enum.KeyCode.Space) and not UserInputService:GetFocusedTextBox() then
                 -- Force state replication change to ensure jump registration
-                if humanoid.FloorMaterial ~= Enum.Material.Air then
-                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                end
+            if humanoid.FloorMaterial ~= Enum.Material.Air then
+                humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
             end
         end
     end)
@@ -7129,7 +7127,6 @@ addcmd("unload", {}, function(args, speaker)
 	end
 	-- Assuming 'bhopConnection' and other potential connections need to be disconnected
 	if bhopConnection then bhopConnection:Disconnect() end
-	-- Add other cleanups here as needed (e.g., antiaimConnection, etc.)
 	notify("Infinite Yield", "Unloaded successfully")
 end)
 
