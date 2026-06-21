@@ -1,9 +1,9 @@
-if IY_LOADED and not _G.IY_DEBUG then
-	-- error("Infinite Yield is already running!", 0)
-	return
-end
+local alreadyRunning = IY_LOADED
+pcall(function() alreadyRunning = alreadyRunning or getgenv().IY_LOADED end)
+if alreadyRunning and not _G.IY_DEBUG then return end
 
 pcall(function() getgenv().IY_LOADED = true end)
+_G.IY_LOADED = true
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 function missing(t, f, fallback)
@@ -7123,15 +7123,6 @@ addcmd("exit", {}, function(args, speaker)
 	game:Shutdown()
 end)
 
-addcmd("unload", {}, function(args, speaker)
-	if PARENT then
-		PARENT:Destroy()
-	end
-	-- Assuming 'bhopConnection' and other potential connections need to be disconnected
-	if bhopConnection then bhopConnection:Disconnect() end
-	notify("Infinite Yield", "Unloaded successfully")
-end)
-
 local Noclipping = nil
 addcmd('noclip',{},function(args, speaker)
 	Clip = false
@@ -11794,69 +11785,93 @@ addcmd("chatlogswebhook", {"logswebhook"}, function(args, speaker)
 end)
 
 flinging = false
+flingLoop = nil
 addcmd('fling',{},function(args, speaker)
 	flinging = false
-	for _, child in pairs(speaker.Character:GetDescendants()) do
+	local char = speaker.Character
+	if not char then return end
+	local root = getRoot(char)
+	if not root then return end
+
+	for _, child in pairs(char:GetDescendants()) do
 		if child:IsA("BasePart") then
 			child.CustomPhysicalProperties = PhysicalProperties.new(100, 0.3, 0.5)
 		end
 	end
 	execCmd('noclip')
-	wait(.1)
-	local bambam = Instance.new("BodyAngularVelocity")
-	bambam.Name = randomString()
-	bambam.Parent = getRoot(speaker.Character)
-	bambam.AngularVelocity = Vector3.new(0,99999,0)
-	bambam.MaxTorque = Vector3.new(0,math.huge,0)
-	bambam.P = math.huge
-	local Char = speaker.Character:GetChildren()
-	for i, v in next, Char do
+	task.wait(0.1)
+
+	local spin = Instance.new("BodyAngularVelocity")
+	spin.Name = randomString()
+	spin.Parent = root
+	spin.AngularVelocity = Vector3.new(0, 99999, 0)
+	spin.MaxTorque = Vector3.new(0, math.huge, 0)
+	spin.P = math.huge
+
+	for _, v in pairs(char:GetChildren()) do
 		if v:IsA("BasePart") then
 			v.CanCollide = false
 			v.Massless = true
 			v.Velocity = Vector3.new(0, 0, 0)
 		end
 	end
+
 	flinging = true
 	local function flingDiedF()
 		execCmd('unfling')
 	end
-	flingDied = speaker.Character:FindFirstChildOfClass('Humanoid').Died:Connect(flingDiedF)
-	repeat
-		bambam.AngularVelocity = Vector3.new(0,99999,0)
-		wait(.2)
-		bambam.AngularVelocity = Vector3.new(0,0,0)
-		wait(.1)
-	until flinging == false
+	flingDied = char:FindFirstChildOfClass('Humanoid').Died:Connect(flingDiedF)
+
+	local tick = 0
+	flingLoop = RunService.Heartbeat:Connect(function()
+		if not flinging then
+			flingLoop:Disconnect()
+			flingLoop = nil
+			return
+		end
+		local c = speaker.Character
+		local r = c and getRoot(c)
+		if not c or not r then
+			flinging = false
+			return
+		end
+		tick = tick + 1
+		if tick % 2 == 0 then
+			spin.AngularVelocity = Vector3.new(0, 99999, 0)
+		else
+			spin.AngularVelocity = Vector3.new(0, 0, 0)
+		end
+	end)
 end)
 
 addcmd('unfling',{'nofling'},function(args, speaker)
 	execCmd('clip')
 	if flingDied then
 		flingDied:Disconnect()
+		flingDied = nil
+	end
+	if flingLoop then
+		flingLoop:Disconnect()
+		flingLoop = nil
 	end
 	flinging = false
-	wait(.1)
+	task.wait(0.1)
 	local speakerChar = speaker.Character
 	if not speakerChar or not getRoot(speakerChar) then return end
 	for i,v in pairs(getRoot(speakerChar):GetChildren()) do
-		if v.ClassName == 'BodyAngularVelocity' then
+		if v:IsA("BodyAngularVelocity") or v:IsA("BodyVelocity") then
 			v:Destroy()
 		end
 	end
 	for _, child in pairs(speakerChar:GetDescendants()) do
-		if child.ClassName == "Part" or child.ClassName == "MeshPart" then
+		if child:IsA("BasePart") then
 			child.CustomPhysicalProperties = PhysicalProperties.new(0.7, 0.3, 0.5)
 		end
 	end
 end)
 
 addcmd('togglefling',{},function(args, speaker)
-	if flinging then
-		execCmd('unfling')
-	else
-		execCmd('fling')
-	end
+	execCmd(flinging and "unfling" or "fling")
 end)
 
 addcmd("flyfling", {}, function(args, speaker)
@@ -11875,6 +11890,7 @@ addcmd("toggleflyfling", {}, function(args, speaker)
 end)
 
 walkflinging = false
+walkflingLoop = nil
 addcmd("walkfling", {}, function(args, speaker)
 	execCmd("unwalkfling")
 	local humanoid = speaker.Character:FindFirstChildWhichIsA("Humanoid")
@@ -11886,35 +11902,35 @@ addcmd("walkfling", {}, function(args, speaker)
 
 	execCmd("noclip nonotify")
 	walkflinging = true
-	repeat RunService.Heartbeat:Wait()
+	walkflingLoop = RunService.Heartbeat:Connect(function()
+		if not walkflinging then
+			walkflingLoop:Disconnect()
+			walkflingLoop = nil
+			return
+		end
 		local character = speaker.Character
 		local root = getRoot(character)
-		local vel, movel = nil, 0.1
-
-		while not (character and character.Parent and root and root.Parent) do
-			RunService.Heartbeat:Wait()
-			character = speaker.Character
-			root = getRoot(character)
+		if not (character and character.Parent and root and root.Parent) then
+			walkflinging = false
+			return
 		end
 
-		vel = root.Velocity
+		local vel = root.Velocity
 		root.Velocity = vel * 10000 + Vector3.new(0, 10000, 0)
 
 		RunService.RenderStepped:Wait()
 		if character and character.Parent and root and root.Parent then
 			root.Velocity = vel
 		end
-
-		RunService.Stepped:Wait()
-		if character and character.Parent and root and root.Parent then
-			root.Velocity = vel + Vector3.new(0, movel, 0)
-			movel = movel * -1
-		end
-	until walkflinging == false
+	end)
 end)
 
 addcmd("unwalkfling", {"nowalkfling"}, function(args, speaker)
 	walkflinging = false
+	if walkflingLoop then
+		walkflingLoop:Disconnect()
+		walkflingLoop = nil
+	end
 	execCmd("unnoclip nonotify")
 end)
 
@@ -13407,6 +13423,39 @@ task.spawn(function()
 			end)
 		end
 	end
+end)
+
+addcmd("unload", {}, function(args, speaker)
+	local function dc(c)
+		pcall(function() if c and c.Disconnect then c:Disconnect() end end)
+	end
+	dc(flingDied) dc(flingLoop) dc(walkflingLoop)
+	dc(Noclipping) dc(bhopConnection) dc(antifling)
+	dc(invisflingStepped) dc(antiaimConnection) dc(subtickStrafeConnection)
+	dc(grabtoolsFunc) dc(flyKeyDown) dc(flyKeyUp) dc(mfly2) dc(CFloop)
+	dc(FloatingFunc) dc(swimbeat) dc(deleteGuiInput) dc(espLoopFunc)
+	dc(lcLoopFunc) dc(partEspTrigger) dc(orbit1) dc(orbit2)
+	dc(infJump) dc(flyjump) dc(headSit) dc(bangLoop) dc(carpetLoop)
+	dc(spinhats) dc(brightLoop) dc(tpwalking) dc(xrayLoop)
+	dc(cancelAutoClick) dc(stareLoop) dc(RolewatchConnection)
+	dc(staffwatchjoin) dc(antivoidloop) dc(alignmentKeys)
+	dc(freezingua) dc(cancelAutoKeyPress) dc(nbUpdateFunc)
+	dc(ActivateHighlight) dc(ClickSelect) dc(tabComplete)
+
+	-- Clear command and bind tables
+	cmds = {} binds = {} toggleOn = {}
+
+	-- Reset state so script can run again
+	pcall(function() getgenv().IY_LOADED = nil end)
+	_G.IY_LOADED = nil
+	Clip = true FLYING = false
+	flinging = false walkflinging = false
+	ESPenabled = false CHMSenabled = false
+
+	notify("Infinite Yield", "Unloaded successfully")
+
+	-- Destroy GUI last
+	if PARENT then pcall(function() PARENT:Destroy() end) end
 end)
 
 task.spawn(function()
