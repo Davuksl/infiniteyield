@@ -11809,10 +11809,8 @@ addcmd('fling',{},function(args, speaker)
 	spin.P = math.huge
 
 	for _, v in pairs(char:GetChildren()) do
-		if v:IsA("BasePart") then
+		if v:IsA("BasePart") and v ~= root then
 			v.CanCollide = false
-			v.Massless = true
-			v.Velocity = Vector3.new(0, 0, 0)
 		end
 	end
 
@@ -11840,6 +11838,10 @@ addcmd('fling',{},function(args, speaker)
 			spin.AngularVelocity = Vector3.new(0, 99999, 0)
 		else
 			spin.AngularVelocity = Vector3.new(0, 0, 0)
+		end
+		r.CanCollide = true
+		if r.Velocity.Y < -10 then
+			r.Velocity = Vector3.new(r.Velocity.X, -10, r.Velocity.Z)
 		end
 	end)
 end)
